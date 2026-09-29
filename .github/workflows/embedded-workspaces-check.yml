@@ -1,0 +1,52 @@
+name: Check Embedded Workspaces
+
+on:
+  push:
+    branches:
+      - embedded-workspaces-v2
+    paths:
+      - 'modules/agent-workspace-runtime/**'
+      - 'lib/agent/workspaces/**'
+      - 'lib/agent/tools/**'
+      - 'db/**'
+      - 'app/screens/WorkspaceManagerScreen.tsx'
+      - '.github/workflows/embedded-workspaces-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npx tsc --noEmit --pretty false
+
+      - name: Generate Android project
+        run: npx expo prebuild --clean --platform android --no-install
+
+      - name: Compile embedded workspace Android module
+        working-directory: android
+        run: ./gradlew :agent-workspace-runtime:compileDebugKotlin --no-daemon --stacktrace
