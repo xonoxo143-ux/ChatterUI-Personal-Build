@@ -16,4 +16,5 @@ export enum Storage {
     ChatStyle = 'storage-chat-text-styling',
     Language = 'storage-language',
     LorebookPreferences = 'storage-lorebook-preference',
+    Workspaces = 'agent-workspaces-storage',
 }
