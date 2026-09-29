@@ -1,3 +1,4 @@
+import { useLiveQuery } from 'drizzle-orm/expo-sqlite'
 import { useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -5,22 +6,24 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import ThemedButton from '@components/buttons/ThemedButton'
 import ThemedTextInput from '@components/input/ThemedTextInput'
 import HeaderTitle from '@components/views/HeaderTitle'
+import { WorkspaceRepository, workspaceFromRow } from '@lib/agent/workspaces/WorkspaceRepository'
 import { WorkspaceService } from '@lib/agent/workspaces/WorkspaceService'
 import { Workspaces } from '@lib/agent/workspaces/WorkspaceStore'
 import { Workspace } from '@lib/agent/workspaces/types'
 import { Theme } from '@lib/theme/ThemeManager'
 
-const DEFAULT_IMAGE = 'alpine:3.21'
+const DEFAULT_DISTRO = 'debian'
 
 const WorkspaceManagerScreen = () => {
     const { spacing } = Theme.useTheme()
-    const workspaces = Workspaces.useWorkspaceStore((state) => state.workspaces)
+    const { data: rows = [] } = useLiveQuery(WorkspaceRepository.live.list())
+    const workspaces = rows.map(workspaceFromRow)
+
     const activeWorkspaceId = Workspaces.useWorkspaceStore((state) => state.activeWorkspaceId)
-    const createWorkspace = Workspaces.useWorkspaceStore((state) => state.createWorkspace)
     const setActiveWorkspace = Workspaces.useWorkspaceStore((state) => state.setActiveWorkspace)
 
     const [name, setName] = useState('')
-    const [image, setImage] = useState(DEFAULT_IMAGE)
+    const [distroId, setDistroId] = useState(DEFAULT_DISTRO)
     const [busy, setBusy] = useState<string>()
     const [outputs, setOutputs] = useState<Record<string, string>>({})
 
@@ -41,19 +44,21 @@ const WorkspaceManagerScreen = () => {
             const result = await operation()
             setOutput(workspace.id, JSON.stringify(result, null, 2).slice(0, 6000))
         } catch (error) {
-            setOutput(
-                workspace.id,
-                error instanceof Error ? error.message : String(error)
-            )
+            setOutput(workspace.id, error instanceof Error ? error.message : String(error))
         } finally {
             setBusy(undefined)
         }
     }
 
-    const handleCreate = () => {
-        const workspace = createWorkspace({
+    const handleCreate = async () => {
+        const requestedDistro = distroId.trim().toLowerCase()
+        if (requestedDistro !== 'debian' && requestedDistro !== 'alpine') {
+            return
+        }
+
+        const workspace = await WorkspaceRepository.mutate.create({
             name: name.trim() || 'Workspace ' + (workspaces.length + 1),
-            image: image.trim() || DEFAULT_IMAGE,
+            distroId: requestedDistro,
             accessProfile: 'full_access',
         })
         setActiveWorkspace(workspace.id)
@@ -69,10 +74,8 @@ const WorkspaceManagerScreen = () => {
                 <View style={styles.intro}>
                     <Text style={styles.title}>Workspace Computers</Text>
                     <Text style={styles.secondary}>
-                        Each workspace gets durable project files and its own named Linux
-                        environment. The project directory is mounted at /workspace and is kept
-                        separate from the Linux rootfs so the computer can be rebuilt without
-                        throwing away the project.
+                        A workspace keeps your project and its own Linux computer together. Linux
+                        runs inside this app; there is no separate Termux installation.
                     </Text>
                 </View>
 
@@ -84,9 +87,11 @@ const WorkspaceManagerScreen = () => {
                         placeholder="Workspace name"
                     />
                     <ThemedTextInput
-                        value={image}
-                        onChangeText={setImage}
-                        placeholder="OCI image, e.g. alpine:3.21"
+                        value={distroId}
+                        onChangeText={setDistroId}
+                        placeholder="debian or alpine"
+                        autoCapitalize="none"
+                        autoCorrect={false}
                     />
                     <ThemedButton label="Create workspace" onPress={handleCreate} />
                 </View>
@@ -94,8 +99,8 @@ const WorkspaceManagerScreen = () => {
                 {workspaces.length === 0 && (
                     <View style={styles.emptyCard}>
                         <Text style={styles.secondary}>
-                            No workspaces yet. Creating one only saves its definition; the Linux
-                            computer is provisioned when you ask for it.
+                            No workspaces yet. Creating one saves the project definition first.
+                            Linux downloads only when you choose Install Linux.
                         </Text>
                     </View>
                 )}
@@ -112,9 +117,7 @@ const WorkspaceManagerScreen = () => {
                             <View style={styles.rowBetween}>
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.workspaceName}>{workspace.name}</Text>
-                                    <Text style={styles.mono}>
-                                        {workspace.runtime.containerName}
-                                    </Text>
+                                    <Text style={styles.mono}>{workspace.id.slice(0, 12)}</Text>
                                 </View>
                                 <Text style={active ? styles.activeText : styles.secondary}>
                                     {active ? 'ACTIVE' : 'IDLE'}
@@ -122,16 +125,21 @@ const WorkspaceManagerScreen = () => {
                             </View>
 
                             <View style={styles.metadata}>
+                                <Text style={styles.secondary}>Runtime: Built-in Linux</Text>
                                 <Text style={styles.secondary}>
-                                    Backend: Termux + PRoot-Distro
+                                    Linux: {workspace.runtime.distroId}
                                 </Text>
                                 <Text style={styles.secondary}>
-                                    Image: {workspace.runtime.image}
+                                    State: {workspace.runtime.state}
                                 </Text>
                                 <Text style={styles.secondary}>
                                     Access: {workspace.accessProfile}
                                 </Text>
                             </View>
+
+                            {!!workspace.runtime.lastError && (
+                                <Text style={styles.errorText}>{workspace.runtime.lastError}</Text>
+                            )}
 
                             <View style={styles.buttonRow}>
                                 {!active && (
@@ -143,7 +151,7 @@ const WorkspaceManagerScreen = () => {
                                 )}
                                 <ThemedButton
                                     variant="secondary"
-                                    label="Check host"
+                                    label="Check runtime"
                                     disabled={isBusy}
                                     onPress={() =>
                                         run(workspace, 'probe', () =>
@@ -152,17 +160,7 @@ const WorkspaceManagerScreen = () => {
                                     }
                                 />
                                 <ThemedButton
-                                    variant="secondary"
-                                    label="Prepare host"
-                                    disabled={isBusy}
-                                    onPress={() =>
-                                        run(workspace, 'prepare', () =>
-                                            WorkspaceService.prepareHost(workspace)
-                                        )
-                                    }
-                                />
-                                <ThemedButton
-                                    label="Provision computer"
+                                    label="Install Linux"
                                     disabled={isBusy}
                                     onPress={() =>
                                         run(workspace, 'provision', () =>
@@ -183,7 +181,7 @@ const WorkspaceManagerScreen = () => {
                                 <ThemedButton
                                     variant="secondary"
                                     label="Test shell"
-                                    disabled={isBusy}
+                                    disabled={isBusy || workspace.runtime.state !== 'ready'}
                                     onPress={() =>
                                         run(workspace, 'shell', () =>
                                             WorkspaceService.exec(workspace, {
@@ -235,6 +233,9 @@ const useStyles = () => {
         },
         secondary: {
             color: color.text._400,
+        },
+        errorText: {
+            color: color.error._400,
         },
         createCard: {
             rowGap: spacing.l,
