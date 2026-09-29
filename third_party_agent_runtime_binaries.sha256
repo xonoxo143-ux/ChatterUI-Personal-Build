@@ -1,0 +1,4 @@
+# Generated embedded runtime payload checksums
+7a3dc844675b942bf8b9be5770694cdfb3e965c63e34871b22ce86bf674c2a0d  modules/agent-workspace-runtime/android/src/main/assets/runtime/arm64-v8a/proot
+6ce892c8ff1d20d4ed4b95887ec41958ccfa4ac31d27fc7f4db1289f7f5aa988  modules/agent-workspace-runtime/android/src/main/assets/runtime/arm64-v8a/tar
+614591192bb34c98cc6cef528fb74ecfc1c97d0fabf4e352df1f16873c71d447  modules/agent-workspace-runtime/android/src/main/jniLibs/arm64-v8a/libproot_loader.so
