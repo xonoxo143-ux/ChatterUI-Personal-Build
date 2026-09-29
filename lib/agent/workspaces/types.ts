@@ -1,4 +1,4 @@
-export type WorkspaceRuntimeBackend = 'termux-proot'
+export type WorkspaceRuntimeBackend = 'embedded-proot'
 
 export type WorkspaceAccessProfile = 'planning' | 'read_only' | 'full_access'
 
@@ -15,10 +15,15 @@ export type WorkspaceCapability =
 
 export type CapabilityDecision = 'allow' | 'ask' | 'deny'
 
+export type WorkspaceRuntimeState = 'not_installed' | 'installing' | 'ready' | 'error'
+
 export type WorkspaceRuntimeConfig = {
     backend: WorkspaceRuntimeBackend
-    containerName: string
-    image: string
+    distroId: string
+    runtimeVersion: string
+    rootfsVersion: string
+    state: WorkspaceRuntimeState
+    lastError: string
 }
 
 export type Workspace = {
@@ -36,15 +41,15 @@ export type WorkspaceCreateInput = {
     name: string
     description?: string
     instructions?: string
-    image?: string
+    distroId?: string
     accessProfile?: WorkspaceAccessProfile
 }
 
 export type WorkspaceRuntimeProbe = {
     backend: WorkspaceRuntimeBackend
     available: boolean
-    termuxInstalled: boolean
-    hostReady: boolean
+    runtimeBundled: boolean
+    rootfsReady: boolean
     message: string
     details?: string
 }
@@ -73,7 +78,7 @@ export type WorkspaceExecResult = {
 
 export interface WorkspaceRuntime {
     readonly backend: WorkspaceRuntimeBackend
-    probe(): Promise<WorkspaceRuntimeProbe>
+    probe(workspace: Workspace): Promise<WorkspaceRuntimeProbe>
     prepareHost(): Promise<WorkspaceExecResult>
     provision(workspace: Workspace): Promise<WorkspaceExecResult>
     status(workspace: Workspace): Promise<WorkspaceRuntimeStatus>
