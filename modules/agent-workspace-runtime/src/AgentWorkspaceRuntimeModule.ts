@@ -1,6 +1,6 @@
 import { requireNativeModule } from 'expo'
 
-export type NativeTermuxCommandResult = {
+export type NativeWorkspaceRuntimeResult = {
     ok: boolean
     started: boolean
     timedOut: boolean
@@ -10,14 +10,27 @@ export type NativeTermuxCommandResult = {
     message: string
 }
 
+export type NativeWorkspaceRuntimeProbe = {
+    available: boolean
+    runtimeBundled: boolean
+    rootfsReady: boolean
+    message: string
+    details: string
+}
+
 type AgentWorkspaceRuntimeModule = {
-    isTermuxInstalled(): Promise<boolean>
-    runTermuxCommand(
+    probeWorkspace(workspaceId: string): Promise<NativeWorkspaceRuntimeProbe>
+    provisionWorkspace(
+        workspaceId: string,
+        distroId: string
+    ): Promise<NativeWorkspaceRuntimeResult>
+    runWorkspaceCommand(
+        workspaceId: string,
+        workspaceName: string,
         command: string,
-        workdir?: string | null,
         timeoutSeconds?: number | null,
         stdin?: string | null
-    ): Promise<NativeTermuxCommandResult>
+    ): Promise<NativeWorkspaceRuntimeResult>
 }
 
 export default requireNativeModule<AgentWorkspaceRuntimeModule>('AgentWorkspaceRuntime')
