@@ -17,7 +17,7 @@ const runtimeFor = (workspace: Workspace) => runtimes[workspace.runtime.backend]
 export namespace WorkspaceService {
     export const getRuntime = (workspace: Workspace) => runtimeFor(workspace)
 
-    export const probe = (workspace: Workspace) => runtimeFor(workspace).probe()
+    export const probe = (workspace: Workspace) => runtimeFor(workspace).probe(workspace)
 
     // Explicit user action: never invoked implicitly by an agent.
     export const prepareHost = (workspace: Workspace) => runtimeFor(workspace).prepareHost()
