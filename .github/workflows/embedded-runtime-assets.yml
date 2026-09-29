@@ -33,16 +33,16 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"             "ndk;28.2.13676358"             "ndk;26.1.10909125"
 
       - name: Build PRoot and loader
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/28.2.13676358
-          AGENTUI_BUILD_JOBS: '2'
-        run: bash tools/embedded-runtime/build-proot-assets.sh arm64-v8a
+        run: |
+          ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358" \
+          AGENTUI_BUILD_JOBS=2 \
+          bash tools/embedded-runtime/build-proot-assets.sh arm64-v8a
 
       - name: Build GNU tar
-        env:
-          UDROID_TAR_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/26.1.10909125
-          AGENTUI_BUILD_JOBS: '2'
-        run: bash tools/embedded-runtime/build-gnu-tar-assets.sh arm64-v8a
+        run: |
+          UDROID_TAR_NDK_HOME="$ANDROID_HOME/ndk/26.1.10909125" \
+          AGENTUI_BUILD_JOBS=2 \
+          bash tools/embedded-runtime/build-gnu-tar-assets.sh arm64-v8a
 
       - name: Record binary checksums
         run: |
