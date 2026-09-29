@@ -366,6 +366,143 @@ export const characterLorebooksRelations = relations(characterLorebooks, ({ one 
 
 // export const characterGroupChats = sqliteTable('character_group_chats', {})
 
+// AGENT WORKSPACES
+//
+// Workspace tables are additive on purpose: existing ChatterUI character/chat tables stay
+// untouched so upstream changes remain easy to merge. Characters can be presented as Agents
+// by the product layer while workspace links live here.
+
+export const workspaces = sqliteTable(
+    'workspaces',
+    {
+        id: text('id').primaryKey().notNull(),
+        name: text('name').notNull(),
+        description: text('description').notNull().default(''),
+        instructions: text('instructions').notNull().default(''),
+        access_profile: text('access_profile', {
+            enum: ['planning', 'read_only', 'full_access'],
+        })
+            .notNull()
+            .default('full_access'),
+        archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
+        created_at: integer('created_at', { mode: 'number' })
+            .notNull()
+            .$defaultFn(() => Date.now()),
+        updated_at: integer('updated_at', { mode: 'number' })
+            .notNull()
+            .$defaultFn(() => Date.now())
+            .$onUpdateFn(() => Date.now()),
+    },
+    (table) => [index('workspaces_updated_idx').on(table.updated_at)]
+)
+
+export const workspaceRuntimes = sqliteTable('workspace_runtimes', {
+    workspace_id: text('workspace_id')
+        .primaryKey()
+        .notNull()
+        .references(() => workspaces.id, { onDelete: 'cascade' }),
+    backend: text('backend', { enum: ['embedded-proot'] })
+        .notNull()
+        .default('embedded-proot'),
+    distro_id: text('distro_id').notNull().default('debian'),
+    runtime_version: text('runtime_version').notNull().default('1'),
+    rootfs_version: text('rootfs_version').notNull().default(''),
+    state: text('state', {
+        enum: ['not_installed', 'installing', 'ready', 'error'],
+    })
+        .notNull()
+        .default('not_installed'),
+    last_error: text('last_error').notNull().default(''),
+    installed_at: integer('installed_at', { mode: 'number' }),
+    last_used_at: integer('last_used_at', { mode: 'number' }),
+})
+
+export const workspacePermissions = sqliteTable(
+    'workspace_permissions',
+    {
+        workspace_id: text('workspace_id')
+            .notNull()
+            .references(() => workspaces.id, { onDelete: 'cascade' }),
+        capability: text('capability').notNull(),
+        decision: text('decision', { enum: ['allow', 'ask', 'deny'] }).notNull(),
+    },
+    (table) => [primaryKey({ columns: [table.workspace_id, table.capability] })]
+)
+
+export const workspaceCharacters = sqliteTable(
+    'workspace_characters',
+    {
+        workspace_id: text('workspace_id')
+            .notNull()
+            .references(() => workspaces.id, { onDelete: 'cascade' }),
+        character_id: integer('character_id', { mode: 'number' })
+            .notNull()
+            .references(() => characters.id, { onDelete: 'cascade' }),
+        role: text('role').notNull().default('member'),
+    },
+    (table) => [primaryKey({ columns: [table.workspace_id, table.character_id] })]
+)
+
+export const workspaceChats = sqliteTable(
+    'workspace_chats',
+    {
+        chat_id: integer('chat_id', { mode: 'number' })
+            .primaryKey()
+            .notNull()
+            .references(() => chats.id, { onDelete: 'cascade' }),
+        workspace_id: text('workspace_id')
+            .notNull()
+            .references(() => workspaces.id, { onDelete: 'cascade' }),
+    },
+    (table) => [index('workspace_chats_workspace_idx').on(table.workspace_id)]
+)
+
+export const workspacesRelations = relations(workspaces, ({ one, many }) => ({
+    runtime: one(workspaceRuntimes, {
+        fields: [workspaces.id],
+        references: [workspaceRuntimes.workspace_id],
+    }),
+    permissions: many(workspacePermissions),
+    characters: many(workspaceCharacters),
+    chats: many(workspaceChats),
+}))
+
+export const workspaceRuntimeRelations = relations(workspaceRuntimes, ({ one }) => ({
+    workspace: one(workspaces, {
+        fields: [workspaceRuntimes.workspace_id],
+        references: [workspaces.id],
+    }),
+}))
+
+export const workspacePermissionRelations = relations(workspacePermissions, ({ one }) => ({
+    workspace: one(workspaces, {
+        fields: [workspacePermissions.workspace_id],
+        references: [workspaces.id],
+    }),
+}))
+
+export const workspaceCharacterRelations = relations(workspaceCharacters, ({ one }) => ({
+    workspace: one(workspaces, {
+        fields: [workspaceCharacters.workspace_id],
+        references: [workspaces.id],
+    }),
+    character: one(characters, {
+        fields: [workspaceCharacters.character_id],
+        references: [characters.id],
+    }),
+}))
+
+export const workspaceChatRelations = relations(workspaceChats, ({ one }) => ({
+    workspace: one(workspaces, {
+        fields: [workspaceChats.workspace_id],
+        references: [workspaces.id],
+    }),
+    chat: one(chats, {
+        fields: [workspaceChats.chat_id],
+        references: [chats.id],
+    }),
+}))
+
 // Model Data
 
 export const model_data = sqliteTable('model_data', {
@@ -459,6 +596,9 @@ export const authorNotes = sqliteTable(
     ]
 )
 
+export type WorkspaceType = typeof workspaces.$inferSelect
+export type WorkspaceRuntimeType = typeof workspaceRuntimes.$inferSelect
+export type WorkspacePermissionType = typeof workspacePermissions.$inferSelect
 export type ModelDataType = typeof model_data.$inferSelect
 export type ChatSwipe = typeof chatSwipes.$inferSelect
 export type ChatEntryType = typeof chatEntries.$inferSelect
