@@ -18,7 +18,7 @@ export const buildWorkspaceContext = (workspace: Workspace) => {
         'Workspace ID: ' + workspace.id,
         'Working directory: /workspace',
         'Runtime: ' + workspace.runtime.backend,
-        'Runtime image: ' + workspace.runtime.image,
+        'Linux image: ' + workspace.runtime.distroId,
         'Access profile: ' + workspace.accessProfile,
         'Allowed capabilities: ' + (allowed || 'none'),
         'Capabilities requiring approval: ' + (ask || 'none'),
