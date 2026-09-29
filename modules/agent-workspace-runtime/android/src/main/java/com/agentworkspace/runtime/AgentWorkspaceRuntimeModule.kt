@@ -8,19 +8,25 @@ class AgentWorkspaceRuntimeModule : Module() {
     override fun definition() = ModuleDefinition {
         Name("AgentWorkspaceRuntime")
 
-        AsyncFunction("isTermuxInstalled") {
-            TermuxCommandBroker.isInstalled(context)
+        AsyncFunction("probeWorkspace") Coroutine { workspaceId: String ->
+            EmbeddedWorkspaceRuntime.probe(context, workspaceId).toMap()
         }
 
-        AsyncFunction("runTermuxCommand") Coroutine {
+        AsyncFunction("provisionWorkspace") Coroutine { workspaceId: String, distroId: String ->
+            EmbeddedWorkspaceRuntime.provision(context, workspaceId, distroId).toMap()
+        }
+
+        AsyncFunction("runWorkspaceCommand") Coroutine {
+                workspaceId: String,
+                workspaceName: String,
                 command: String,
-                workdir: String?,
                 timeoutSeconds: Int?,
                 stdin: String? ->
-            TermuxCommandBroker.run(
+            EmbeddedWorkspaceRuntime.run(
                 context = context,
+                workspaceId = workspaceId,
+                workspaceName = workspaceName,
                 command = command,
-                workdir = workdir,
                 timeoutSeconds = timeoutSeconds ?: 120,
                 stdin = stdin,
             ).toMap()
