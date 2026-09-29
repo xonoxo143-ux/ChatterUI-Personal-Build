@@ -174,6 +174,12 @@ export class TermuxPRootRuntime implements WorkspaceRuntime {
             'else',
             '  proot-distro install ' + shellQuote(image) + ' --name ' + shellQuote(container),
             'fi',
+            // Create the bind target inside the guest before asking PRoot to mount over it.
+            // Keeping this explicit avoids depending on backend-specific missing-target behavior.
+            'proot-distro login ' +
+                shellQuote(container) +
+                ' --isolated -- /bin/sh -lc ' +
+                shellQuote('mkdir -p /workspace'),
             'printf "Project directory: %s\\n" ' + shellQuote(project),
         ].join('; ')
 
