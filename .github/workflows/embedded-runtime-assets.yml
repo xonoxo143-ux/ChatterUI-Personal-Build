@@ -59,6 +59,8 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add             modules/agent-workspace-runtime/android/src/main/assets             modules/agent-workspace-runtime/android/src/main/jniLibs             third_party_agent_runtime_binaries.sha256
+          git add -f modules/agent-workspace-runtime/android/src/main/assets
+          git add -f modules/agent-workspace-runtime/android/src/main/jniLibs
+          git add third_party_agent_runtime_binaries.sha256
           git commit -m "runtime: build embedded arm64 PRoot payload"
           git push origin HEAD:embedded-workspaces-v2
