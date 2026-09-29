@@ -1,4 +1,5 @@
 import { requireCapability } from './policy'
+import { WorkspaceRepository } from './WorkspaceRepository'
 import { embeddedPRootRuntime } from './runtime/EmbeddedPRootRuntime'
 import {
     Workspace,
@@ -22,7 +23,24 @@ export namespace WorkspaceService {
     export const prepareHost = (workspace: Workspace) => runtimeFor(workspace).prepareHost()
 
     // Explicit user action: runtime creation is separate from the agent permission profile.
-    export const provision = (workspace: Workspace) => runtimeFor(workspace).provision(workspace)
+    export const provision = async (workspace: Workspace) => {
+        await WorkspaceRepository.mutate.setRuntimeState(workspace.id, 'installing')
+        try {
+            const result = await runtimeFor(workspace).provision(workspace)
+            await WorkspaceRepository.mutate.setRuntimeState(
+                workspace.id,
+                result.ok ? 'ready' : 'error',
+                result.ok ? {} : { lastError: result.message }
+            )
+            return result
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error)
+            await WorkspaceRepository.mutate.setRuntimeState(workspace.id, 'error', {
+                lastError: message,
+            })
+            throw error
+        }
+    }
 
     export const status = (workspace: Workspace) => runtimeFor(workspace).status(workspace)
 
