@@ -1,18 +1,20 @@
-name: Agent Workspaces APK
+name: Embedded Workspaces APK
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - agent-workspaces-v1
+      - embedded-workspaces-v2
     paths:
       - 'app/**'
+      - 'db/**'
       - 'lib/**'
       - 'modules/**'
       - 'expo-build-plugins/**'
       - 'app.config.js'
       - 'package.json'
       - 'package-lock.json'
+      - 'third_party_agent_runtime_binaries.sha256'
       - '.github/workflows/agent-workspaces-build.yml'
 
 permissions:
@@ -27,8 +29,10 @@ jobs:
       CI: '1'
 
     steps:
-      - name: Checkout
+      - name: Checkout embedded workspace branch
         uses: actions/checkout@v5
+        with:
+          ref: embedded-workspaces-v2
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -43,6 +47,13 @@ jobs:
           java-version: '21'
           cache: gradle
 
+      - name: Verify embedded Linux payload
+        run: |
+          test -x modules/agent-workspace-runtime/android/src/main/assets/runtime/arm64-v8a/proot
+          test -x modules/agent-workspace-runtime/android/src/main/assets/runtime/arm64-v8a/tar
+          test -f modules/agent-workspace-runtime/android/src/main/jniLibs/arm64-v8a/libproot_loader.so
+          sha256sum -c third_party_agent_runtime_binaries.sha256
+
       - name: Install JavaScript dependencies
         run: npm ci --no-audit --no-fund
 
@@ -56,10 +67,13 @@ jobs:
         working-directory: android
         run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
 
+      - name: Show APK checksum
+        run: sha256sum android/app/build/outputs/apk/debug/*.apk
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: agent-workspaces-debug-apk
+          name: embedded-workspaces-debug-apk
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
