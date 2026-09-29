@@ -27,6 +27,7 @@ jobs:
     env:
       APP_VARIANT: development
       CI: '1'
+      ORG_GRADLE_PROJECT_reactNativeArchitectures: arm64-v8a
 
     steps:
       - name: Checkout embedded workspace branch
@@ -65,7 +66,7 @@ jobs:
 
       - name: Build debug APK
         working-directory: android
-        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+        run: ./gradlew :app:assembleDebug -PreactNativeArchitectures=arm64-v8a --no-daemon --stacktrace
 
       - name: Show APK checksum
         run: sha256sum android/app/build/outputs/apk/debug/*.apk
