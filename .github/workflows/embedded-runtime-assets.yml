@@ -1,0 +1,64 @@
+name: Build Embedded Workspace Runtime
+
+on:
+  push:
+    branches:
+      - embedded-workspaces-v2
+    paths:
+      - 'tools/embedded-runtime/**'
+      - '.github/workflows/embedded-runtime-assets.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-arm64-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: embedded-workspaces-v2
+
+      - name: Install build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake autopoint bison build-essential gawk gettext             libtool pkg-config python3 unzip xsltproc
+
+      - name: Install pinned Android NDKs
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"             "ndk;28.2.13676358"             "ndk;26.1.10909125"
+
+      - name: Build PRoot and loader
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/28.2.13676358
+          AGENTUI_BUILD_JOBS: '2'
+        run: bash tools/embedded-runtime/build-proot-assets.sh arm64-v8a
+
+      - name: Build GNU tar
+        env:
+          UDROID_TAR_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/26.1.10909125
+          AGENTUI_BUILD_JOBS: '2'
+        run: bash tools/embedded-runtime/build-gnu-tar-assets.sh arm64-v8a
+
+      - name: Record binary checksums
+        run: |
+          {
+            echo "# Generated embedded runtime payload checksums"
+            find modules/agent-workspace-runtime/android/src/main/assets/runtime/arm64-v8a                  modules/agent-workspace-runtime/android/src/main/jniLibs/arm64-v8a                  -type f -print0 | sort -z | xargs -0 sha256sum
+          } > third_party_agent_runtime_binaries.sha256
+
+      - name: Commit runtime payload
+        run: |
+          if git diff --quiet --             modules/agent-workspace-runtime/android/src/main/assets             modules/agent-workspace-runtime/android/src/main/jniLibs             third_party_agent_runtime_binaries.sha256; then
+            echo "Embedded runtime payload already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add             modules/agent-workspace-runtime/android/src/main/assets             modules/agent-workspace-runtime/android/src/main/jniLibs             third_party_agent_runtime_binaries.sha256
+          git commit -m "runtime: build embedded arm64 PRoot payload"
+          git push origin HEAD:embedded-workspaces-v2
