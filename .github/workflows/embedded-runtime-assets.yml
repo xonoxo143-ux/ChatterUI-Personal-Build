@@ -53,14 +53,14 @@ jobs:
 
       - name: Commit runtime payload
         run: |
-          if [ -z "$(git status --porcelain -- modules/agent-workspace-runtime/android/src/main/assets modules/agent-workspace-runtime/android/src/main/jniLibs third_party_agent_runtime_binaries.sha256)" ]; then
-            echo "Embedded runtime payload already current."
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -f modules/agent-workspace-runtime/android/src/main/assets
           git add -f modules/agent-workspace-runtime/android/src/main/jniLibs
           git add third_party_agent_runtime_binaries.sha256
+          if git diff --cached --quiet; then
+            echo "Embedded runtime payload already current."
+            exit 0
+          fi
           git commit -m "runtime: build embedded arm64 PRoot payload"
           git push origin HEAD:embedded-workspaces-v2
