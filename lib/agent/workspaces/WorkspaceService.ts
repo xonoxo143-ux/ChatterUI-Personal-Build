@@ -1,5 +1,5 @@
 import { requireCapability } from './policy'
-import { termuxPRootRuntime } from './runtime/TermuxPRootRuntime'
+import { embeddedPRootRuntime } from './runtime/EmbeddedPRootRuntime'
 import {
     Workspace,
     WorkspaceExecOptions,
@@ -8,7 +8,7 @@ import {
 } from './types'
 
 const runtimes: Record<WorkspaceRuntimeBackend, WorkspaceRuntime> = {
-    'termux-proot': termuxPRootRuntime,
+    'embedded-proot': embeddedPRootRuntime,
 }
 
 const runtimeFor = (workspace: Workspace) => runtimes[workspace.runtime.backend]
