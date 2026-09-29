@@ -397,7 +397,7 @@ object EmbeddedWorkspaceRuntime {
         archive: File,
         rootfs: File,
     ) {
-        ensureDirectory(File(rootfs, "linkerconfig"))
+        prepareAndroidMountTargets(rootfs)
         val runtimeMount = File(rootfs, ".agentui-extract")
         ensureDirectory(runtimeMount)
         val tarMount = File(runtimeMount, "tar")
@@ -468,9 +468,9 @@ object EmbeddedWorkspaceRuntime {
     }
 
     private fun configureRootfs(rootfs: File) {
+        prepareAndroidMountTargets(rootfs)
         listOf(
-            "dev", "dev/pts", "dev/shm", "proc", "sys", "tmp", "root",
-            "workspace", "etc", "linkerconfig",
+            "dev/pts", "dev/shm", "tmp", "root", "workspace", "etc",
         ).forEach { ensureDirectory(File(rootfs, it)) }
 
         writeTextFile(
@@ -481,6 +481,18 @@ object EmbeddedWorkspaceRuntime {
             File(rootfs, "etc/resolv.conf"),
             "nameserver 1.1.1.1\nnameserver 8.8.8.8\n",
         )
+    }
+
+    private fun prepareAndroidMountTargets(rootfs: File) {
+        listOf("system", "apex", "dev", "proc", "sys", "linkerconfig").forEach {
+            ensureDirectory(File(rootfs, it))
+        }
+        val linkerConfig = File(rootfs, "linkerconfig/ld.config.txt")
+        if (!linkerConfig.exists()) {
+            check(linkerConfig.createNewFile()) {
+                "Could not create Android linker-config mount target."
+            }
+        }
     }
 
     private fun writeMarker(file: File, body: String) {
