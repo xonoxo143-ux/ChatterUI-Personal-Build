@@ -53,7 +53,7 @@ jobs:
 
       - name: Commit runtime payload
         run: |
-          if git diff --quiet --             modules/agent-workspace-runtime/android/src/main/assets             modules/agent-workspace-runtime/android/src/main/jniLibs             third_party_agent_runtime_binaries.sha256; then
+          if [ -z "$(git status --porcelain -- modules/agent-workspace-runtime/android/src/main/assets modules/agent-workspace-runtime/android/src/main/jniLibs third_party_agent_runtime_binaries.sha256)" ]; then
             echo "Embedded runtime payload already current."
             exit 0
           fi
