@@ -102,6 +102,11 @@ const useStyles = () => {
 }
 
 const getPaths = (remote: boolean, t: (input: string) => string): ButtonData[] => [
+    {
+        name: 'Workspaces',
+        path: '/screens/WorkspaceManagerScreen',
+        icon: 'folder',
+    },
     remote
         ? {
               name: t('navigation.api'),
